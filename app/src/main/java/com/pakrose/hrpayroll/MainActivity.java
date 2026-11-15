@@ -249,10 +249,7 @@ public class MainActivity extends Activity {
     button("Add New Employee", this::addEmployeeForm);
 }
 
-        c.close();
-
-        button("Add New Employee", this::addEmployeeForm);
-    }
+        
 private void editEmployeeForm(
         int id,
         String oldName,
