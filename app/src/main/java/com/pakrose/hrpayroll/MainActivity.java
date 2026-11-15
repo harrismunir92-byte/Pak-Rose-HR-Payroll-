@@ -6,7 +6,9 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.view.*;
 import android.widget.*;
-import android.text.*;
+import android.database.Cursor;
+import android.text.InputType;
+
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -16,16 +18,20 @@ public class MainActivity extends Activity {
     private final int NAVY = Color.rgb(16, 35, 65);
     private final int BLUE = Color.rgb(35, 85, 145);
     private final int BG = Color.rgb(245, 247, 251);
+
     private LinearLayout root, content, nav;
-    private TextView pageTitle;
+    private AppDatabase db;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        db = new AppDatabase(this);
         showDashboard();
     }
 
-    private TextView text(String value, int size, int color, boolean bold) {
+    private TextView text(String value, int size,
+                          int color, boolean bold) {
         TextView t = new TextView(this);
         t.setText(value);
         t.setTextSize(size);
@@ -44,12 +50,9 @@ public class MainActivity extends Activity {
         header.setPadding(22, 22, 22, 18);
         header.setBackgroundColor(NAVY);
 
-        TextView company = text("PAK ROSE ENTERPRISES", 13,
-                Color.rgb(190, 210, 235), true);
-        header.addView(company);
-
-        pageTitle = text(title, 23, Color.WHITE, true);
-        header.addView(pageTitle);
+        header.addView(text("PAK ROSE ENTERPRISES",
+                13, Color.LTGRAY, true));
+        header.addView(text(title, 23, Color.WHITE, true));
 
         root.addView(header);
 
@@ -59,16 +62,16 @@ public class MainActivity extends Activity {
         content.setPadding(16, 16, 16, 20);
         scroll.addView(content);
 
-        root.addView(scroll, new LinearLayout.LayoutParams(
-                -1, 0, 1));
+        root.addView(scroll,
+                new LinearLayout.LayoutParams(-1, 0, 1));
 
         nav = new LinearLayout(this);
         nav.setBackgroundColor(Color.WHITE);
         nav.setElevation(10);
-        nav.setGravity(Gravity.CENTER);
         root.addView(nav);
 
         setContentView(root);
+
         addNavButton("Home", this::showDashboard);
         addNavButton("Employees", this::showEmployees);
         addNavButton("Attendance", this::showAttendance);
@@ -79,8 +82,9 @@ public class MainActivity extends Activity {
     private void addNavButton(String label, Runnable action) {
         TextView b = text(label, 11, NAVY, true);
         b.setGravity(Gravity.CENTER);
-        b.setPadding(5, 16, 5, 16);
-        b.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1));
+        b.setPadding(4, 16, 4, 16);
+        b.setLayoutParams(
+                new LinearLayout.LayoutParams(0, -2, 1));
         b.setOnClickListener(v -> action.run());
         nav.addView(b);
     }
@@ -98,13 +102,9 @@ public class MainActivity extends Activity {
         box.setBackgroundColor(Color.WHITE);
         box.setElevation(3);
 
-        TextView a = text(title, 13, Color.GRAY, true);
-        TextView b = text(value, 25, NAVY, true);
-        TextView c = text(subtitle, 12, Color.GRAY, false);
-
-        box.addView(a);
-        box.addView(b);
-        box.addView(c);
+        box.addView(text(title, 13, Color.GRAY, true));
+        box.addView(text(value, 25, NAVY, true));
+        box.addView(text(subtitle, 12, Color.GRAY, false));
 
         LinearLayout.LayoutParams p =
                 new LinearLayout.LayoutParams(-1, -2);
@@ -126,23 +126,41 @@ public class MainActivity extends Activity {
         content.addView(b, p);
     }
 
+    private EditText field(String hint, int inputType) {
+        EditText e = new EditText(this);
+        e.setHint(hint);
+        e.setSingleLine(true);
+        e.setTextSize(15);
+        e.setInputType(inputType);
+        e.setPadding(14, 12, 14, 12);
+        return e;
+    }
+
     private void showDashboard() {
         setup("Dashboard");
 
         String today = new SimpleDateFormat(
-                "EEEE, dd MMMM yyyy", Locale.getDefault())
-                .format(new Date());
+                "EEEE, dd MMMM yyyy",
+                Locale.getDefault()).format(new Date());
 
-        TextView date = text(today, 13, Color.GRAY, false);
-        content.addView(date);
+        content.addView(text(today, 13, Color.GRAY, false));
+
+        int employees = db.getEmployeeCount();
 
         heading("Company Overview");
-        card("TOTAL EMPLOYEES", "0", "Registered employees");
-        card("PRESENT TODAY", "0", "Today's attendance");
-        card("MONTHLY PAYROLL", "Rs. 0", "Estimated salary");
+        card("TOTAL EMPLOYEES",
+                String.valueOf(employees),
+                "Registered active employees");
+
+        card("PRESENT TODAY", "0",
+                "Attendance summary");
+
+        card("MONTHLY PAYROLL", "Rs. 0",
+                "Payroll summary");
 
         heading("Quick Actions");
-        button("Add New Employee", this::showEmployees);
+        button("Add New Employee", this::addEmployeeForm);
+        button("View Employees", this::showEmployees);
         button("Mark Attendance", this::showAttendance);
         button("View Payroll", this::showPayroll);
         button("Office Settings", this::showSettings);
@@ -150,106 +168,172 @@ public class MainActivity extends Activity {
 
     private void showEmployees() {
         setup("Employees");
+
         heading("Employee Management");
 
-        content.addView(text(
-                "Employee records will be managed here.",
-                14, Color.GRAY, false));
+        Cursor c = db.getEmployees();
 
-        button("Add New Employee", () -> addEmployeeForm());
+        if (c.getCount() == 0) {
+            content.addView(text(
+                    "No employees added yet.",
+                    14, Color.GRAY, false));
+        }
+
+        while (c.moveToNext()) {
+            int id = c.getInt(
+                    c.getColumnIndexOrThrow("id"));
+
+            String name = c.getString(
+                    c.getColumnIndexOrThrow("name"));
+
+            String designation = c.getString(
+                    c.getColumnIndexOrThrow("designation"));
+
+            double salary = c.getDouble(
+                    c.getColumnIndexOrThrow("basic_salary"));
+
+            card(name,
+                    "Rs. " + String.format(
+                            Locale.getDefault(), "%,.0f", salary),
+                    designation + "  |  ID: " + id);
+        }
+
+        c.close();
+
+        button("Add New Employee", this::addEmployeeForm);
     }
 
     private void addEmployeeForm() {
         setup("New Employee");
 
-        EditText name = field("Employee full name");
-        EditText designation = field("Designation");
-        EditText phone = field("Phone number");
-        EditText salary = field("Monthly basic salary");
+        heading("Employee Details");
+
+        EditText name = field("Full name",
+                InputType.TYPE_CLASS_TEXT |
+                InputType.TYPE_TEXT_FLAG_CAP_WORDS);
+
+        EditText designation = field("Designation",
+                InputType.TYPE_CLASS_TEXT);
+
+        EditText phone = field("Phone number",
+                InputType.TYPE_CLASS_PHONE);
+
+        EditText joining = field("Joining date (YYYY-MM-DD)",
+                InputType.TYPE_CLASS_DATETIME |
+                InputType.TYPE_DATETIME_VARIATION_DATE);
+
+        EditText salary = field("Monthly basic salary",
+                InputType.TYPE_CLASS_NUMBER |
+                InputType.TYPE_NUMBER_FLAG_DECIMAL);
 
         content.addView(name);
         content.addView(designation);
         content.addView(phone);
+        content.addView(joining);
         content.addView(salary);
 
         button("Save Employee", () -> {
-            if (name.getText().toString().trim().isEmpty()) {
-                name.setError("Name is required");
+            String n = name.getText().toString().trim();
+            String d = designation.getText().toString().trim();
+            String p = phone.getText().toString().trim();
+            String j = joining.getText().toString().trim();
+            String s = salary.getText().toString().trim();
+
+            if (n.isEmpty()) {
+                name.setError("Name required");
                 return;
             }
-            Toast.makeText(this,
-                    "Employee form ready. Database setup is next.",
-                    Toast.LENGTH_LONG).show();
-        });
-    }
 
-    private EditText field(String hint) {
-        EditText e = new EditText(this);
-        e.setHint(hint);
-        e.setSingleLine(true);
-        e.setTextSize(15);
-        e.setPadding(14, 12, 14, 12);
-        return e;
+            if (s.isEmpty()) {
+                salary.setError("Salary required");
+                return;
+            }
+
+            double amount;
+
+            try {
+                amount = Double.parseDouble(s);
+                if (amount < 0) throw new Exception();
+            } catch (Exception e) {
+                salary.setError("Enter a valid salary");
+                return;
+            }
+
+            long result = db.addEmployee(
+                    n, p, d, j, amount, "");
+
+            if (result != -1) {
+                Toast.makeText(this,
+                        "Employee saved successfully",
+                        Toast.LENGTH_SHORT).show();
+                showEmployees();
+            } else {
+                Toast.makeText(this,
+                        "Unable to save employee",
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void showAttendance() {
         setup("Attendance");
         heading("Daily Attendance");
 
-        TextView date = text(
+        content.addView(text(
                 new SimpleDateFormat("dd MMMM yyyy",
                         Locale.getDefault()).format(new Date()),
-                15, NAVY, true);
-        content.addView(date);
+                15, NAVY, true));
 
-        button("Check In", () -> showTime("Check In"));
-        button("Check Out", () -> showTime("Check Out"));
-
-        heading("Attendance Status");
-        button("Present", () -> showStatus("Present"));
-        button("Absent", () -> showStatus("Absent"));
-        button("Paid Leave", () -> showStatus("Paid Leave"));
-        button("Unpaid Leave", () -> showStatus("Unpaid Leave"));
-    }
-
-    private void showTime(String action) {
-        String time = new SimpleDateFormat(
-                "hh:mm a", Locale.getDefault()).format(new Date());
-        new AlertDialog.Builder(this)
-                .setTitle(action)
-                .setMessage(action + " time: " + time)
-                .setPositiveButton("OK", null)
-                .show();
-    }
-
-    private void showStatus(String status) {
-        Toast.makeText(this,
-                "Selected: " + status,
-                Toast.LENGTH_SHORT).show();
+        content.addView(text(
+                "Attendance actions will be connected to employee records next.",
+                14, Color.GRAY, false));
     }
 
     private void showPayroll() {
         setup("Payroll");
         heading("Salary Management");
-        card("MONTHLY SALARY", "Rs. 0", "Total basic salary");
-        card("OVERTIME", "Rs. 0", "Overtime amount");
-        card("DEDUCTIONS", "Rs. 0", "Advances and deductions");
-        card("NET PAYABLE", "Rs. 0", "Final salary");
-        button("Generate Salary Slips", () ->
-                Toast.makeText(this,
-                        "Payroll module will be connected next.",
-                        Toast.LENGTH_SHORT).show());
+
+        card("MONTHLY SALARY", "Rs. 0",
+                "Basic salary total");
+        card("OVERTIME", "Rs. 0",
+                "Overtime amount");
+        card("DEDUCTIONS", "Rs. 0",
+                "Advances and deductions");
+        card("NET PAYABLE", "Rs. 0",
+                "Final salary");
+
+        content.addView(text(
+                "Payroll calculations and salary slips will be connected next.",
+                13, Color.GRAY, false));
     }
 
     private void showSettings() {
         setup("Office Settings");
+
         heading("Adjustable Office Timings");
 
-        EditText start = field("Office start time e.g. 09:00 AM");
-        EditText end = field("Office closing time e.g. 05:00 PM");
-        EditText grace = field("Late grace minutes e.g. 10");
-        EditText overtime = field("Overtime after minutes e.g. 480");
-        EditText breakTime = field("Break duration in minutes");
+        EditText start = field("Office start e.g. 09:00",
+                InputType.TYPE_CLASS_DATETIME |
+                InputType.TYPE_DATETIME_VARIATION_TIME);
+
+        EditText end = field("Office end e.g. 17:00",
+                InputType.TYPE_CLASS_DATETIME |
+                InputType.TYPE_DATETIME_VARIATION_TIME);
+
+        EditText grace = field("Late grace minutes",
+                InputType.TYPE_CLASS_NUMBER);
+
+        EditText overtime = field("Overtime threshold in minutes",
+                InputType.TYPE_CLASS_NUMBER);
+
+        EditText breakTime = field("Break duration in minutes",
+                InputType.TYPE_CLASS_NUMBER);
+
+        start.setText(db.getSetting("office_start", "09:00"));
+        end.setText(db.getSetting("office_end", "17:00"));
+        grace.setText(db.getSetting("late_grace", "10"));
+        overtime.setText(db.getSetting("overtime_after", "480"));
+        breakTime.setText(db.getSetting("break_minutes", "60"));
 
         content.addView(start);
         content.addView(end);
@@ -257,17 +341,81 @@ public class MainActivity extends Activity {
         content.addView(overtime);
         content.addView(breakTime);
 
-        button("Save Office Settings", () ->
-                Toast.makeText(this,
-                        "Settings screen ready. Saving system comes next.",
-                        Toast.LENGTH_LONG).show());
+        button("Save Office Settings", () -> {
+            String a = start.getText().toString().trim();
+            String b = end.getText().toString().trim();
+            String g = grace.getText().toString().trim();
+            String o = overtime.getText().toString().trim();
+            String br = breakTime.getText().toString().trim();
 
-        heading("Other Settings");
-        button("PIN Security", () ->
-                Toast.makeText(this, "PIN security module next.",
-                        Toast.LENGTH_SHORT).show());
-        button("Backup & Restore", () ->
-                Toast.makeText(this, "Backup module next.",
-                        Toast.LENGTH_SHORT).show());
+            if (!validTime(a) || !validTime(b)) {
+                Toast.makeText(this,
+                        "Time format must be HH:mm",
+                        Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            try {
+                if (Integer.parseInt(g) < 0 ||
+                    Integer.parseInt(o) < 0 ||
+                    Integer.parseInt(br) < 0) {
+                    throw new Exception();
+                }
+            } catch (Exception e) {
+                Toast.makeText(this,
+                        "Enter valid minutes",
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            db.saveSetting("office_start", a);
+            db.saveSetting("office_end", b);
+            db.saveSetting("late_grace", g);
+            db.saveSetting("overtime_after", o);
+            db.saveSetting("break_minutes", br);
+
+            Toast.makeText(this,
+                    "Office settings saved",
+                    Toast.LENGTH_SHORT).show();
+        });
+
+        heading("Security");
+        button("Set / Change PIN", this::setPin);
+    }
+
+    private boolean validTime(String value) {
+        try {
+            return value.matches(
+                    "([01][0-9]|2[0-3]):[0-5][0-9]");
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void setPin() {
+        EditText pin = field("Enter new 4-8 digit PIN",
+                InputType.TYPE_CLASS_NUMBER |
+                InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+
+        new AlertDialog.Builder(this)
+                .setTitle("App Security PIN")
+                .setView(pin)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    SecurityManager security =
+                            new SecurityManager(this);
+
+                    if (security.setPin(
+                            pin.getText().toString())) {
+                        Toast.makeText(this,
+                                "PIN saved",
+                                Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(this,
+                                "Enter 4 to 8 digits",
+                                Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 }
