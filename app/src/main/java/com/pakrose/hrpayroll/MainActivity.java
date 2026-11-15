@@ -253,7 +253,78 @@ public class MainActivity extends Activity {
 
         button("Add New Employee", this::addEmployeeForm);
     }
+private void editEmployeeForm(
+        int id,
+        String oldName,
+        String oldPhone,
+        String oldDesignation,
+        String oldJoining,
+        double oldSalary) {
 
+    setup("Edit Employee");
+    heading("Update Employee Details");
+
+    EditText name = field("Full name",
+            InputType.TYPE_CLASS_TEXT);
+    EditText designation = field("Designation",
+            InputType.TYPE_CLASS_TEXT);
+    EditText phone = field("Phone number",
+            InputType.TYPE_CLASS_PHONE);
+    EditText joining = field("Joining date (YYYY-MM-DD)",
+            InputType.TYPE_CLASS_DATETIME |
+            InputType.TYPE_DATETIME_VARIATION_DATE);
+    EditText salary = field("Monthly basic salary",
+            InputType.TYPE_CLASS_NUMBER |
+            InputType.TYPE_NUMBER_FLAG_DECIMAL);
+
+    name.setText(oldName);
+    designation.setText(oldDesignation);
+    phone.setText(oldPhone);
+    joining.setText(oldJoining);
+    salary.setText(String.valueOf(oldSalary));
+
+    content.addView(name);
+    content.addView(designation);
+    content.addView(phone);
+    content.addView(joining);
+    content.addView(salary);
+
+    button("Save Changes", () -> {
+        String n = name.getText().toString().trim();
+        String d = designation.getText().toString().trim();
+        String p = phone.getText().toString().trim();
+        String j = joining.getText().toString().trim();
+        String s = salary.getText().toString().trim();
+
+        if (n.isEmpty() || s.isEmpty()) {
+            Toast.makeText(this,
+                    "Name and salary are required",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        try {
+            double amount = Double.parseDouble(s);
+
+            if (amount < 0) {
+                throw new Exception();
+            }
+
+            boolean updated = db.updateEmployee(
+                    id, n, p, d, j, amount);
+
+            Toast.makeText(this,
+                    updated ? "Employee updated"
+                            : "Update failed",
+                    Toast.LENGTH_SHORT).show();
+
+            showEmployees();
+
+        } catch (Exception e) {
+            salary.setError("Enter valid salary");
+        }
+    });
+}
     private void addEmployeeForm() {
         setup("New Employee");
 
