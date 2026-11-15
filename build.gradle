@@ -1,0 +1,12 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.pakrose.hrpayroll'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'com.pakrose.hrpayroll'
+        minSdk 23
+        targetSdk 28
+        versionCode 1
+        versionName '2.0'
+    }
+}
