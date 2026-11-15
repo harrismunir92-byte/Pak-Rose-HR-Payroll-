@@ -132,7 +132,14 @@ public class MainActivity extends Activity {
                 LinearLayout card=vertical();card.setBackground(bg(Color.WHITE,12));card.setPadding(dp(13),dp(12),dp(13),dp(12));card.addView(text(name,15,NAVY,true));
                 card.addView(text("Basic: "+money(salary)+"   |   Paid days: "+paid+"   |   Unpaid/Absent: "+(ul+abs),11,MUTED,false));
                 card.addView(text("Deduction: "+money(deduction)+"   •   Net salary: "+money(net),13,TEAL,true));
-                Button slip=smallButton("PDF payslip");card.addView(slip);slip.setOnClickListener(v->pdfSlip(name,m,salary,paid,ul+abs,deduction,net));
+                final int paidDays = paid;
+final int unpaidDays = ul + abs;
+final double deductionAmount = deduction;
+final double netAmount = net;
+
+Button slip = smallButton("PDF payslip");
+card.addView(slip);
+slip.setOnClickListener(v -> pdfSlip(name, m, salary, paidDays, unpaidDays, deductionAmount, netAmount));
                 LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=dp(8);results.addView(card,lp);
             }c.close();TextView total=text("TOTAL NET PAYROLL: "+money(grand),16,NAVY,true);total.setPadding(0,dp(12),0,dp(20));results.addView(total);};
         calc.setOnClickListener(v->run.run());run.run();
