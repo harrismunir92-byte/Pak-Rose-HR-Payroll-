@@ -167,36 +167,87 @@ public class MainActivity extends Activity {
     }
 
     private void showEmployees() {
-        setup("Employees");
+    setup("Employees");
+    heading("Employee Management");
 
-        heading("Employee Management");
+    Cursor c = db.getEmployees();
 
-        Cursor c = db.getEmployees();
+    if (c.getCount() == 0) {
+        content.addView(text("No employees added yet.",
+                14, Color.GRAY, false));
+    }
 
-        if (c.getCount() == 0) {
-            content.addView(text(
-                    "No employees added yet.",
-                    14, Color.GRAY, false));
-        }
+    while (c.moveToNext()) {
+        final int id = c.getInt(
+                c.getColumnIndexOrThrow("id"));
 
-        while (c.moveToNext()) {
-            int id = c.getInt(
-                    c.getColumnIndexOrThrow("id"));
+        final String name = c.getString(
+                c.getColumnIndexOrThrow("name"));
 
-            String name = c.getString(
-                    c.getColumnIndexOrThrow("name"));
+        final String phone = c.getString(
+                c.getColumnIndexOrThrow("phone"));
 
-            String designation = c.getString(
-                    c.getColumnIndexOrThrow("designation"));
+        final String designation = c.getString(
+                c.getColumnIndexOrThrow("designation"));
 
-            double salary = c.getDouble(
-                    c.getColumnIndexOrThrow("basic_salary"));
+        final String joining = c.getString(
+                c.getColumnIndexOrThrow("joining_date"));
 
-            card(name,
-                    "Rs. " + String.format(
-                            Locale.getDefault(), "%,.0f", salary),
-                    designation + "  |  ID: " + id);
-        }
+        final double salary = c.getDouble(
+                c.getColumnIndexOrThrow("basic_salary"));
+
+        LinearLayout item = new LinearLayout(this);
+        item.setOrientation(LinearLayout.VERTICAL);
+        item.setPadding(16, 14, 16, 14);
+        item.setBackgroundColor(Color.WHITE);
+
+        item.addView(text(name, 18, NAVY, true));
+        item.addView(text(designation, 13, Color.GRAY, false));
+        item.addView(text("Rs. " + String.format(
+                Locale.getDefault(), "%,.0f", salary),
+                15, NAVY, true));
+
+        LinearLayout actions = new LinearLayout(this);
+
+        Button edit = new Button(this);
+        edit.setText("EDIT");
+        edit.setOnClickListener(v ->
+                editEmployeeForm(id, name, phone,
+                        designation, joining, salary));
+
+        Button delete = new Button(this);
+        delete.setText("DELETE");
+        delete.setOnClickListener(v ->
+                new AlertDialog.Builder(this)
+                        .setTitle("Delete Employee")
+                        .setMessage("Are you sure?")
+                        .setNegativeButton("Cancel", null)
+                        .setPositiveButton("Delete",
+                                (dialog, which) -> {
+                                    db.deleteEmployee(id);
+                                    Toast.makeText(this,
+                                            "Employee deleted",
+                                            Toast.LENGTH_SHORT).show();
+                                    showEmployees();
+                                }).show());
+
+        actions.addView(edit,
+                new LinearLayout.LayoutParams(0, -2, 1));
+        actions.addView(delete,
+                new LinearLayout.LayoutParams(0, -2, 1));
+
+        item.addView(actions);
+
+        LinearLayout.LayoutParams params =
+                new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(0, 0, 0, 12);
+        content.addView(item, params);
+    }
+
+    c.close();
+
+    button("Add New Employee", this::addEmployeeForm);
+}
 
         c.close();
 
