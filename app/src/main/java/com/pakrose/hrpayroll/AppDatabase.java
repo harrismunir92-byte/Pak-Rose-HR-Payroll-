@@ -184,4 +184,77 @@ public class AppDatabase extends SQLiteOpenHelper {
             SQLiteDatabase db, int oldVersion, int newVersion) {
         // Future database migrations will be handled here.
     }
+   
+public Cursor getActiveEmployees() {
+    return getReadableDatabase().rawQuery(
+            "SELECT id, name FROM employees WHERE active=1 ORDER BY name",
+            null
+    );
+}
+
+public boolean checkIn(int employeeId, String date, String time) {
+    SQLiteDatabase db = getWritableDatabase();
+
+    Cursor c = db.rawQuery(
+            "SELECT id FROM attendance WHERE employee_id=? AND date=?",
+            new String[]{
+                    String.valueOf(employeeId), date
+            }
+    );
+
+    boolean success;
+
+    if (c.moveToFirst()) {
+        c.close();
+
+        ContentValues cv = new ContentValues();
+        cv.put("check_in", time);
+        cv.put("status", "Present");
+
+        success = db.update(
+                "attendance", cv,
+                "employee_id=? AND date=?",
+                new String[]{
+                        String.valueOf(employeeId), date
+                }
+        ) > 0;
+
+    } else {
+        c.close();
+
+        ContentValues cv = new ContentValues();
+        cv.put("employee_id", employeeId);
+        cv.put("date", date);
+        cv.put("check_in", time);
+        cv.put("status", "Present");
+
+        success = db.insert("attendance", null, cv) != -1;
+    }
+
+    return success;
+}
+
+public boolean checkOut(int employeeId, String date, String time) {
+    ContentValues cv = new ContentValues();
+    cv.put("check_out", time);
+
+    return getWritableDatabase().update(
+            "attendance",
+            cv,
+            "employee_id=? AND date=? AND check_in IS NOT NULL",
+            new String[]{
+                    String.valueOf(employeeId), date
+            }
+    ) > 0;
+}
+
+public Cursor getAttendanceForDate(String date) {
+    return getReadableDatabase().rawQuery(
+            "SELECT attendance.*, employees.name " +
+            "FROM attendance INNER JOIN employees " +
+            "ON attendance.employee_id=employees.id " +
+            "WHERE attendance.date=? ORDER BY employees.name",
+            new String[]{date}
+    );
+} 
 }
