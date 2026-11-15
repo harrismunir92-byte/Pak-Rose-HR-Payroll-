@@ -185,6 +185,41 @@ public class AppDatabase extends SQLiteOpenHelper {
         // Future database migrations will be handled here.
     }
    
+public boolean updateEmployee(
+        int id,
+        String name,
+        String phone,
+        String designation,
+        String joiningDate,
+        double salary) {
+
+    ContentValues cv = new ContentValues();
+    cv.put("name", name);
+    cv.put("phone", phone);
+    cv.put("designation", designation);
+    cv.put("joining_date", joiningDate);
+    cv.put("basic_salary", salary);
+
+    return getWritableDatabase().update(
+            "employees",
+            cv,
+            "id=?",
+            new String[]{String.valueOf(id)}
+    ) > 0;
+}
+
+public boolean deleteEmployee(int id) {
+    ContentValues cv = new ContentValues();
+    cv.put("active", 0);
+
+    return getWritableDatabase().update(
+            "employees",
+            cv,
+            "id=?",
+            new String[]{String.valueOf(id)}
+    ) > 0;
+}
+
 public Cursor getActiveEmployees() {
     return getReadableDatabase().rawQuery(
             "SELECT id, name FROM employees WHERE active=1 ORDER BY name",
