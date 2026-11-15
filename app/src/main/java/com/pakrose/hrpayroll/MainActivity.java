@@ -275,19 +275,124 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void showAttendance() {
-        setup("Attendance");
-        heading("Daily Attendance");
+    
+private void showAttendance() {
+    setup("Attendance");
+    heading("Daily Employee Attendance");
 
-        content.addView(text(
-                new SimpleDateFormat("dd MMMM yyyy",
-                        Locale.getDefault()).format(new Date()),
-                15, NAVY, true));
+    String today = new SimpleDateFormat(
+            "yyyy-MM-dd", Locale.getDefault())
+            .format(new Date());
 
+    String displayDate = new SimpleDateFormat(
+            "dd MMMM yyyy", Locale.getDefault())
+            .format(new Date());
+
+    content.addView(text(
+            displayDate, 15, NAVY, true));
+
+    Cursor employees = db.getActiveEmployees();
+
+    java.util.ArrayList<Integer> ids =
+            new java.util.ArrayList<>();
+
+    java.util.ArrayList<String> names =
+            new java.util.ArrayList<>();
+
+    while (employees.moveToNext()) {
+        ids.add(employees.getInt(0));
+        names.add(employees.getString(1));
+    }
+    employees.close();
+
+    if (ids.isEmpty()) {
+        heading("No Employees Found");
+        button("Add Employee", this::addEmployeeForm);
+        return;
+    }
+
+    heading("Select Employee");
+
+    Spinner employeeSpinner = new Spinner(this);
+
+    ArrayAdapter<String> adapter =
+            new ArrayAdapter<>(
+                    this,
+                    android.R.layout.simple_spinner_item,
+                    names);
+
+    adapter.setDropDownViewResource(
+            android.R.layout.simple_spinner_dropdown_item);
+
+    employeeSpinner.setAdapter(adapter);
+    content.addView(employeeSpinner);
+
+    button("CHECK IN", () -> {
+        int employeeId = ids.get(
+                employeeSpinner.getSelectedItemPosition());
+
+        String time = new SimpleDateFormat(
+                "HH:mm", Locale.getDefault())
+                .format(new Date());
+
+        boolean saved = db.checkIn(
+                employeeId, today, time);
+
+        Toast.makeText(this,
+                saved ? "Check-in saved: " + time
+                      : "Check-in failed",
+                Toast.LENGTH_SHORT).show();
+
+        showAttendance();
+    });
+
+    button("CHECK OUT", () -> {
+        int employeeId = ids.get(
+                employeeSpinner.getSelectedItemPosition());
+
+        String time = new SimpleDateFormat(
+                "HH:mm", Locale.getDefault())
+                .format(new Date());
+
+        boolean saved = db.checkOut(
+                employeeId, today, time);
+
+        Toast.makeText(this,
+                saved ? "Check-out saved: " + time
+                      : "Check-in record not found",
+                Toast.LENGTH_SHORT).show();
+
+        showAttendance();
+    });
+
+    heading("Today's Attendance Records");
+
+    Cursor records = db.getAttendanceForDate(today);
+
+    if (records.getCount() == 0) {
         content.addView(text(
-                "Attendance actions will be connected to employee records next.",
+                "No attendance marked yet.",
                 14, Color.GRAY, false));
     }
+
+    while (records.moveToNext()) {
+        String employeeName = records.getString(
+                records.getColumnIndexOrThrow("name"));
+
+        String in = records.getString(
+                records.getColumnIndexOrThrow("check_in"));
+
+        String out = records.getString(
+                records.getColumnIndexOrThrow("check_out"));
+
+        card(employeeName,
+                "In: " + (in == null ? "--" : in),
+                "Out: " + (out == null ? "--" : out));
+    }
+
+    records.close();
+}
+
 
     private void showPayroll() {
         setup("Payroll");
